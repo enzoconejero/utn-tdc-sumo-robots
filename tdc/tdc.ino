@@ -36,18 +36,57 @@ const int TMP_GIRO_35 = 500;  // TODO: debería probarse hasta encontrar el valo
 const int TMP_MOVER = 1000;
 const int TMP_ATACAR = 5000;
 
+class Ultrasonido{
+  private:
+    int trigger;
+    int echo;
+  
+  public:
+    Ultrasonido(int _trigger, int _echo){
+      trigger = _trigger;
+      echo = _echo;
+    }
+
+    bool detectaOponente(){
+      digitalWrite(trigger, HIGH);
+      delay(1);
+      digitalWrite(trigger, LOW);
+      int duracion = pulseIn(echo, HIGH);
+      int distancia = duracion / 58.2;  // cm. Valor especificado por el fabricante del sensor
+      return distancia < 80;
+    }
+};
+
 // Variables
 bool corriendo;
-//bool mandoPresionado;
+Ultrasonido usDD = Ultrasonido(TRG_DD, ECH_DD);
+Ultrasonido usDI = Ultrasonido(TRG_DI, ECH_DI);
+Ultrasonido usD = Ultrasonido(TRG_D, ECH_D);
+Ultrasonido usI = Ultrasonido(TRG_I, ECH_I);
 
 void setup() {
 
-  pinMode(mando, INPUT);           // Input del mando
-  pinMode(led, OUTPUT);            // Led de encendido
-  pinMode(POS_DD, INPUT);          // CYN Delantero Derecho
-  pinMode(POS_DI, INPUT);          // CYN Delantero Izquierdo
-  pinMode(POS_TD, INPUT);          // CYN Trasero Derecho
-  pinMode(POS_TI, INPUT);          // CYN Trasero Izquierdo
+  pinMode(mando, INPUT);            // Input del mando
+  pinMode(led, OUTPUT);             // Led de encendido
+  pinMode(POS_DD, INPUT);           // CYN Delantero Derecho
+  pinMode(POS_DI, INPUT);           // CYN Delantero Izquierdo
+  pinMode(POS_TD, INPUT);           // CYN Trasero Derecho
+  pinMode(POS_TI, INPUT);           // CYN Trasero Izquierdo
+
+  pinMode(TRG_DD, OUTPUT);          // Trigger del ultrasonido Delantero Derecho
+  pinMode(TRG_DI, OUTPUT);          // Trigger del ultrasonido Delantero Izquierdo
+  pinMode(TRG_D, OUTPUT);           // Trigger del ultrasonido Derecho
+  pinMode(TRG_I, OUTPUT);           // Trigger del ultrasonido Izquierdo
+
+  pinMode(ECH_DD, INPUT);           // Echo del ultrasonido Delantero Derecho
+  pinMode(ECH_DI, INPUT);           // Echo del ultrasonido Delantero Izquierdo
+  pinMode(ECH_D, INPUT);            // Echo del ultrasonido Derecho
+  pinMode(ECH_I, INPUT);            // Echo del ultrasonido Izquierdo
+
+  pinMode(Q1_DERECHO, OUTPUT);      // Q1 Puente H - Motor Derecho
+  pinMode(Q2_DERECHO, OUTPUT);      // Q2 Puente H - Motor Derecho
+  pinMode(Q1_IZQUIERDO, OUTPUT);    // Q1 Puente H - Motor Izquierdo
+  pinMode(Q2_IZQUIERDO, OUTPUT);    // Q2 Puente H - Motor Izquierdo
 
   corriendo = false;
 }
@@ -165,10 +204,10 @@ void girarDerecha(int tiempo){
 
 void atacar(){
   // Detecta objetos en todos los sensores
-  bool oponenteEnDD = detectaOponente(TRG_DD, ECH_DD);
-  bool oponenteEnDI = detectaOponente(TRG_DI, ECH_DI);
-  bool oponenteEnD = detectaOponente(TRG_D, ECH_D);
-  bool oponenteEnI = detectaOponente(TRG_I, ECH_I);
+  bool oponenteEnDD = usDD.detectaOponente();
+  bool oponenteEnDI = usDI.detectaOponente();
+  bool oponenteEnD = usD.detectaOponente();
+  bool oponenteEnI = usI.detectaOponente();
 
   // Estrategias según donde lo encuentra
   if(oponenteEnI){    // Si está a la izquierda
@@ -195,12 +234,3 @@ void atacar(){
     girarDerecha(TMP_GIRO_45);
   }
 }
-
-bool detectaOponente(int trigger, int echo){
-  digitalWrite(trigger, HIGH);
-  delay(1);
-  digitalWrite(trigger, LOW);
-  int duracion = pulseIn(echo, HIGH);
-  int distancia = duracion / 58.2;  // cm. Valor especificado por el fabricante del sensor
-  return distancia < 80;
-} 
