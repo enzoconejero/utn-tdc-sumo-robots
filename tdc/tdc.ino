@@ -22,8 +22,20 @@ const int ECH_I = 0;
 // Llaves para puente H
 const int Q1_DERECHO = 13;
 const int Q2_DERECHO = 12;
-const int Q1_IZQUIERDO = 11;
-const int Q2_IZQUIERDO = 10;
+const int Q1_IZQUIERDO = 9;
+const int Q2_IZQUIERDO = 8;
+
+// MOSFET Puente H
+const int MOSFET_DERECHO = 11;
+const int MOSFET_IZQUIERDO = 10;
+
+// Distancia máxima de oponente en cm
+const int DISTANCIA = 100;
+
+// Potencias MOSFET
+const int PW_STOP = 0;
+const int PW_WALK = 64;
+const int PW_MAX = 255;
 
 // Direcciones motor
 const int ADELANTE = 1;
@@ -40,6 +52,7 @@ class Ultrasonido{
   private:
     int trigger;
     int echo;
+    int distancia;
   
   public:
     Ultrasonido(int _trigger, int _echo){
@@ -52,8 +65,21 @@ class Ultrasonido{
       delay(1);
       digitalWrite(trigger, LOW);
       int duracion = pulseIn(echo, HIGH);
-      int distancia = duracion / 58.2;  // cm. Valor especificado por el fabricante del sensor
-      return distancia < 80;
+      int _distancia = duracion / 58.2;  // cm. Valor especificado por el fabricante del sensor
+      distancia = _distancia;
+      return _distancia < 100;
+    }
+
+    int distanciaOponente(){
+      return distancia;  
+    }
+
+    int velocidadAtaque(){ // Entre PW_WALK y PW_MAX proporcional a la distancia entre 0 y 80
+      if(distancia >= 100){
+        return 0;  
+      }
+      int vel = map(distancia, 0, 100, PW_WALK, PW_MAX);
+      return vel;
     }
 };
 
@@ -66,28 +92,31 @@ Ultrasonido usI = Ultrasonido(TRG_I, ECH_I);
 
 void setup() {
 
-  pinMode(mando, INPUT);            // Input del mando
-  pinMode(led, OUTPUT);             // Led de encendido
-  pinMode(POS_DD, INPUT);           // CYN Delantero Derecho
-  pinMode(POS_DI, INPUT);           // CYN Delantero Izquierdo
-  pinMode(POS_TD, INPUT);           // CYN Trasero Derecho
-  pinMode(POS_TI, INPUT);           // CYN Trasero Izquierdo
+//  pinMode(mando, INPUT);              // Input del mando
+//  pinMode(led, OUTPUT);               // Led de encendido
+//  pinMode(POS_DD, INPUT);             // CYN Delantero Derecho
+//  pinMode(POS_DI, INPUT);             // CYN Delantero Izquierdo
+//  pinMode(POS_TD, INPUT);             // CYN Trasero Derecho
+//  pinMode(POS_TI, INPUT);             // CYN Trasero Izquierdo
 
-  pinMode(TRG_DD, OUTPUT);          // Trigger del ultrasonido Delantero Derecho
-  pinMode(TRG_DI, OUTPUT);          // Trigger del ultrasonido Delantero Izquierdo
-  pinMode(TRG_D, OUTPUT);           // Trigger del ultrasonido Derecho
-  pinMode(TRG_I, OUTPUT);           // Trigger del ultrasonido Izquierdo
+  pinMode(TRG_DD, OUTPUT);            // Trigger del ultrasonido Delantero Derecho
+  pinMode(TRG_DI, OUTPUT);            // Trigger del ultrasonido Delantero Izquierdo
+  pinMode(TRG_D, OUTPUT);             // Trigger del ultrasonido Derecho
+  pinMode(TRG_I, OUTPUT);             // Trigger del ultrasonido Izquierdo
 
-  pinMode(ECH_DD, INPUT);           // Echo del ultrasonido Delantero Derecho
-  pinMode(ECH_DI, INPUT);           // Echo del ultrasonido Delantero Izquierdo
-  pinMode(ECH_D, INPUT);            // Echo del ultrasonido Derecho
-  pinMode(ECH_I, INPUT);            // Echo del ultrasonido Izquierdo
+  pinMode(ECH_DD, INPUT);             // Echo del ultrasonido Delantero Derecho
+  pinMode(ECH_DI, INPUT);             // Echo del ultrasonido Delantero Izquierdo
+  pinMode(ECH_D, INPUT);              // Echo del ultrasonido Derecho
+  pinMode(ECH_I, INPUT);              // Echo del ultrasonido Izquierdo
 
-  pinMode(Q1_DERECHO, OUTPUT);      // Q1 Puente H - Motor Derecho
-  pinMode(Q2_DERECHO, OUTPUT);      // Q2 Puente H - Motor Derecho
-  pinMode(Q1_IZQUIERDO, OUTPUT);    // Q1 Puente H - Motor Izquierdo
-  pinMode(Q2_IZQUIERDO, OUTPUT);    // Q2 Puente H - Motor Izquierdo
+  pinMode(Q1_DERECHO, OUTPUT);        // Q1 Puente H - Motor Derecho
+  pinMode(Q2_DERECHO, OUTPUT);        // Q2 Puente H - Motor Derecho
+  pinMode(Q1_IZQUIERDO, OUTPUT);      // Q1 Puente H - Motor Izquierdo
+  pinMode(Q2_IZQUIERDO, OUTPUT);      // Q2 Puente H - Motor Izquierdo
 
+  pinMode(MOSFET_DERECHO, OUTPUT);    // Mosfet Puente H - Motor Derecho
+  pinMode(MOSFET_IZQUIERDO, OUTPUT);  // Mosfet Puente H - Motor Izquierdo
+  
   corriendo = false;
 }
 
@@ -123,6 +152,7 @@ void ubicarse(){
 
   // Detiene el robot
   detener();
+  setVelocidad(PW_WALK);
   
   if(dd && td){ // Borde a la derecha
     girarIzquierda(TMP_GIRO_90);
@@ -147,6 +177,11 @@ void ubicarse(){
 void avanzar(int direccion, int duracion){
   avanzarDerecha(direccion, duracion);
   avanzarIzquierda(direccion, duracion);
+}
+
+void setVelocidad(int velocidad){
+  analogWrite(MOSFET_DERECHO, velocidad);
+  analogWrite(MOSFET_IZQUIERDO, velocidad);
 }
 
 // Movimiento de la rueda derecha
@@ -186,6 +221,9 @@ void detener(){
   for(int pin = 10; pin < 14; pin++){
     digitalWrite(pin, LOW);
   }
+
+  analogWrite(MOSFET_DERECHO, PW_STOP);
+  analogWrite(MOSFET_IZQUIERDO, PW_STOP);
 }
 
 void girarIzquierda(int tiempo){
@@ -211,22 +249,27 @@ void atacar(){
 
   // Estrategias según donde lo encuentra
   if(oponenteEnI){    // Si está a la izquierda
+    setVelocidad(usI.velocidadAtaque());
     girarIzquierda(TMP_GIRO_90);
   }
   
   else if(oponenteEnD){     // Si está a la derecha
+    setVelocidad(usD.velocidadAtaque());
     girarDerecha(TMP_GIRO_90);
   }
   
   else if(oponenteEnDI && oponenteEnDD){  // Si está en ambos delanteros
+    setVelocidad(usI.velocidadAtaque());
     avanzar(ADELANTE, TMP_ATACAR);
   }
 
   else if(oponenteEnDI){    // Si sólo está en el delantero izquierdo
+    setVelocidad(usDI.velocidadAtaque());
     girarIzquierda(TMP_GIRO_35);
   }
 
   else if(oponenteEnDD){    // Si sólo está en el delantero derecho
+    setVelocidad(usDD.velocidadAtaque());
     girarDerecha(TMP_GIRO_35);
   }
 
