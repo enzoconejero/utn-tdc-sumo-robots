@@ -30,7 +30,7 @@ const int MOSFET_DERECHO = 11;
 const int MOSFET_IZQUIERDO = 10;
 
 // Distancia máxima de oponente en cm
-const int DISTANCIA = 100;
+const int DISTANCIA_MAXIMA = 100;
 
 // Potencias MOSFET
 const int PW_STOP = 0;
@@ -61,18 +61,16 @@ class Ultrasonido{
       echo = _echo;
     }
 
-    bool detectaOponente(){
+    bool buscarOponente(){
       digitalWrite(trigger, HIGH);
       delay(1);
       digitalWrite(trigger, LOW);
       int duracion = pulseIn(echo, HIGH);
-      int _distancia = duracion / 58.2;  // cm. Valor especificado por el fabricante del sensor
-      distancia = _distancia;
-      return _distancia < 100;
+      distancia = duracion / 58.2;  // cm. Valor especificado por el fabricante del sensor
     }
 
-    int distanciaOponente(){
-      return distancia;  
+    int detectaOponente(){
+      return distancia < DISTANCIA_MAXIMA;  
     }
 
     int velocidadAtaque(){ // Entre PW_WALK y PW_MAX proporcional a la distancia entre 0 y 80
@@ -92,13 +90,6 @@ Ultrasonido usD = Ultrasonido(TRG_D, ECH_D);
 Ultrasonido usI = Ultrasonido(TRG_I, ECH_I);
 
 void setup() {
-
-//  pinMode(mando, INPUT);              // Input del mando
-//  pinMode(led, OUTPUT);               // Led de encendido
-//  pinMode(POS_DD, INPUT);             // CYN Delantero Derecho
-//  pinMode(POS_DI, INPUT);             // CYN Delantero Izquierdo
-//  pinMode(POS_TD, INPUT);             // CYN Trasero Derecho
-//  pinMode(POS_TI, INPUT);             // CYN Trasero Izquierdo
 
   pinMode(TRG_DD, OUTPUT);            // Trigger del ultrasonido Delantero Derecho
   pinMode(TRG_DI, OUTPUT);            // Trigger del ultrasonido Delantero Izquierdo
@@ -245,30 +236,30 @@ void girarDerecha(int tiempo){
 
 void atacar(){
   // Detecta objetos en todos los sensores
-  bool oponenteEnDD = usDD.detectaOponente();
-  bool oponenteEnDI = usDI.detectaOponente();
-  bool oponenteEnD = usD.detectaOponente();
-  bool oponenteEnI = usI.detectaOponente();
+  usDD.buscarOponente();
+  usDI.buscarOponente();
+  usD.buscarOponente();
+  usI.buscarOponente();
 
   // Estrategias según donde lo encuentra
-  if(oponenteEnI){    // Si está a la izquierda
+  if(usI.detectaOponente()){    // Si está a la izquierda
     girarIzquierda(TMP_GIRO_90);
   }
   
-  else if(oponenteEnD){     // Si está a la derecha
+  else if(usD.detectaOponente()){     // Si está a la derecha
     girarDerecha(TMP_GIRO_90);
   }
   
-  else if(oponenteEnDI && oponenteEnDD){  // Si está en ambos delanteros
+  else if(usDD.detectaOponente() && usDI.detectaOponente()){  // Si está en ambos delanteros
     setVelocidad(usDD.velocidadAtaque());
     avanzar(ADELANTE, TMP_ATACAR);
   }
 
-  else if(oponenteEnDI){    // Si sólo está en el delantero izquierdo
+  else if(usDI.detectaOponente()){    // Si sólo está en el delantero izquierdo
     girarIzquierda(TMP_GIRO_35);
   }
 
-  else if(oponenteEnDD){    // Si sólo está en el delantero derecho
+  else if(usDD.detectaOponente()){    // Si sólo está en el delantero derecho
     girarDerecha(TMP_GIRO_35);
   }
 
