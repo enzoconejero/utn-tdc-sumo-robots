@@ -36,6 +36,7 @@ const int DISTANCIA = 100;
 const int PW_STOP = 0;
 const int PW_WALK = 64;
 const int PW_MAX = 255;
+const int PW_GIRO = 255; // TODO: debería probarse hasta encontrar el valor
 
 // Direcciones motor
 const int ADELANTE = 1;
@@ -45,7 +46,7 @@ const int ATRAS = -1;
 const int TMP_GIRO_90 = 500;  // TODO: debería probarse hasta encontrar el valor
 const int TMP_GIRO_45 = 500;  // TODO: debería probarse hasta encontrar el valor
 const int TMP_GIRO_35 = 500;  // TODO: debería probarse hasta encontrar el valor
-const int TMP_MOVER = 1000;
+const int TMP_MOVER = 1000;   // TODO: debería probarse hasta encontrar el valor
 const int TMP_ATACAR = 5000;
 
 class Ultrasonido{
@@ -228,6 +229,7 @@ void detener(){
 
 void girarIzquierda(int tiempo){
   detener();
+  setVelocidad(PW_GIRO);
   digitalWrite(Q1_DERECHO, HIGH);
   delay(tiempo);
   digitalWrite(Q1_DERECHO, LOW);
@@ -235,6 +237,7 @@ void girarIzquierda(int tiempo){
 
 void girarDerecha(int tiempo){
   detener();
+  setVelocidad(PW_GIRO);
   digitalWrite(Q1_IZQUIERDO, HIGH);
   delay(tiempo);
   digitalWrite(Q1_IZQUIERDO, LOW);  
@@ -249,27 +252,23 @@ void atacar(){
 
   // Estrategias según donde lo encuentra
   if(oponenteEnI){    // Si está a la izquierda
-    setVelocidad(usI.velocidadAtaque());
     girarIzquierda(TMP_GIRO_90);
   }
   
   else if(oponenteEnD){     // Si está a la derecha
-    setVelocidad(usD.velocidadAtaque());
     girarDerecha(TMP_GIRO_90);
   }
   
   else if(oponenteEnDI && oponenteEnDD){  // Si está en ambos delanteros
-    setVelocidad(usI.velocidadAtaque());
+    setVelocidad(usDD.velocidadAtaque());
     avanzar(ADELANTE, TMP_ATACAR);
   }
 
   else if(oponenteEnDI){    // Si sólo está en el delantero izquierdo
-    setVelocidad(usDI.velocidadAtaque());
     girarIzquierda(TMP_GIRO_35);
   }
 
   else if(oponenteEnDD){    // Si sólo está en el delantero derecho
-    setVelocidad(usDD.velocidadAtaque());
     girarDerecha(TMP_GIRO_35);
   }
 
