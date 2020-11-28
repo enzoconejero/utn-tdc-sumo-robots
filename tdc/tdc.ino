@@ -38,9 +38,12 @@ const int PW_WALK = 64;
 const int PW_MAX = 255;
 const int PW_GIRO = 255; // TODO: debería probarse hasta encontrar el valor
 
+// TODO: Enum + switch cases ?
 // Direcciones motor
 const int ADELANTE = 1;
 const int ATRAS = -1;
+const int DERECHA = 2;
+const int IZQUIERDA = 3;
 
 // Duraciones movimiento
 const int TMP_GIRO_90 = 500;  // TODO: debería probarse hasta encontrar el valor
@@ -48,6 +51,9 @@ const int TMP_GIRO_45 = 500;  // TODO: debería probarse hasta encontrar el valo
 const int TMP_GIRO_35 = 500;  // TODO: debería probarse hasta encontrar el valor
 const int TMP_MOVER = 1000;   // TODO: debería probarse hasta encontrar el valor
 const int TMP_ATACAR = 5000;
+
+// Linea blanca infrarrojo
+const int LINEA_BLANCA = 300;
 
 class Ultrasonido{
   private:
@@ -82,12 +88,42 @@ class Ultrasonido{
     }
 };
 
+// Conjunto motor + mosfet + rueda + puente H
+// Mueve, direcciona, frena
+class Rueda{
+  private:
+    int q1;
+    int q2;
+    int mosfet;
+
+  public:
+    Rueda(int _q1, int _q2, int _mosfet){
+      q1 = _q1;
+      q2 = _q2;
+      mosfet = _mosfet;
+    }
+
+    void mover(int direccion){
+      if(direccion == ADELANTE){
+        digitalWrite(q1, HIGH);
+        digitalWrite(q2, LOW);
+      }
+      else{
+        digitalWrite(q1, LOW);
+        digitalWrite(q2, HIGH);
+      }
+    }
+};
+
 // Variables
 bool corriendo;
 Ultrasonido usDD = Ultrasonido(TRG_DD, ECH_DD);
 Ultrasonido usDI = Ultrasonido(TRG_DI, ECH_DI);
 Ultrasonido usD = Ultrasonido(TRG_D, ECH_D);
 Ultrasonido usI = Ultrasonido(TRG_I, ECH_I);
+
+Rueda rd = Rueda(Q1_DERECHO, Q2_DERECHO, MOSFET_DERECHO);
+Rueda ri = Rueda(Q1_IZQUIERDO, Q2_IZQUIERDO, MOSFET_IZQUIERDO);
 
 void setup() {
 
@@ -121,7 +157,7 @@ void loop() {
   }
 }
 
-// Funciones
+// Encendido y apagado
 void verificarMando(){
   // Si se presiono el mando remoto
   if(digitalRead(mando) == HIGH){ 
@@ -130,45 +166,53 @@ void verificarMando(){
       }
       else{
         corriendo = true;
-        delay(5000);
+        delay(5000);  // TODO: hacer constante
       }
   }
 }
 
+// Retorna si un sensor detecta línea blanca, 
+// pasa cuando la lectura analógica da un valor > a cierto minimo (300 para probar)
+bool detectaLineaBlanca(int sensor){
+  return analogRead(POS_DD) >= LINEA_BLANCA;
+}
+
+// Si detecta linea blanca en algún sensor se aleja de la misma
 void ubicarse(){
   // Lee todos los sensores
-  bool dd = digitalRead(POS_DD) == HIGH;
-  bool di = digitalRead(POS_DI) == HIGH;
-  bool td = digitalRead(POS_TD) == HIGH;
-  bool ti = digitalRead(POS_TI) == HIGH;
+  bool dd = detectaLineaBlanca(POS_DD);
+  bool di = detectaLineaBlanca(POS_DI);
+  bool td = detectaLineaBlanca(POS_TD);
+  bool ti = detectaLineaBlanca(POS_TI);
 
-  // Detiene el robot
-  detener();
-  setVelocidad(PW_WALK);
+  if(dd || di || td || ti){
+    setVelocidad(PW_WALK);
   
-  if(dd && td){ // Borde a la derecha
-    girarIzquierda(TMP_GIRO_90);
-    avanzar(ADELANTE, TMP_MOVER);
-  }
-
-  else if(di && ti){ // Borde a la derecha
-    girarDerecha(TMP_GIRO_90);
-    avanzar(ADELANTE, TMP_MOVER);
-  }
-
-  else if(dd && di){ // Borde delante
-    avanzar(ATRAS, TMP_MOVER);
-  }
+    if(dd && td){ // Borde a la derecha
+      girarIzquierda(TMP_GIRO_90);
+      avanzar(ADELANTE);
+    }
   
-  else{ // Borde atrás o sin borde
-    avanzar(ADELANTE, TMP_MOVER);
+    else if(di && ti){ // Borde a la derecha
+      girarDerecha(TMP_GIRO_90);;
+      avanzar(ADELANTE);
+    }
+  
+    else if(dd && di){ // Borde delante
+      avanzar(ATRAS);
+    }
+  
+    else if(td && ti){ // Borde atrás o sin borde
+      avanzar(ADELANTE);
+    }
   }
+
 }
 
 // Va con las ruedas para adelante
-void avanzar(int direccion, int duracion){
-  avanzarDerecha(direccion, duracion);
-  avanzarIzquierda(direccion, duracion);
+void avanzar(int direccion){
+  rd.mover(direccion);
+  ri.mover(direccion);
 }
 
 void setVelocidad(int velocidad){
@@ -176,62 +220,23 @@ void setVelocidad(int velocidad){
   analogWrite(MOSFET_IZQUIERDO, velocidad);
 }
 
-// Movimiento de la rueda derecha
-void avanzarDerecha(int direccion, int duracion){
-  if(direccion == ADELANTE){
-    digitalWrite(Q1_DERECHO, HIGH);
-    digitalWrite(Q2_DERECHO, LOW);
-  }
-
-  else{
-    digitalWrite(Q1_DERECHO, LOW);
-    digitalWrite(Q2_DERECHO, HIGH);    
-  }
-
-  delay(duracion);
-  detener();
-}
-
-// Movimiento de la rueda izquierda
-void avanzarIzquierda(int direccion, int duracion){
-  if(direccion == ADELANTE){
-    digitalWrite(Q1_IZQUIERDO, HIGH);
-    digitalWrite(Q2_IZQUIERDO, LOW);
-  }
-
-  else{
-    digitalWrite(Q1_IZQUIERDO, LOW);
-    digitalWrite(Q2_IZQUIERDO, HIGH);    
-  }
-
-  delay(duracion);
-  detener();
-}
-
-// Detiene todas las ruedas
-void detener(){
-  for(int pin = 10; pin < 14; pin++){
-    digitalWrite(pin, LOW);
-  }
-
-  analogWrite(MOSFET_DERECHO, PW_STOP);
-  analogWrite(MOSFET_IZQUIERDO, PW_STOP);
-}
-
+// TODO: unir giro izquierdo y derecho
+// Gira el robot por un cierto tiempo, más tiempo => más angulo
+// Durante este tiempo no se hará otra cosa que girar
 void girarIzquierda(int tiempo){
-  detener();
   setVelocidad(PW_GIRO);
-  digitalWrite(Q1_DERECHO, HIGH);
+  rd.mover(ATRAS);
+  ri.mover(ADELANTE);
   delay(tiempo);
-  digitalWrite(Q1_DERECHO, LOW);
+  avanzar(ADELANTE);
 }
 
 void girarDerecha(int tiempo){
-  detener();
   setVelocidad(PW_GIRO);
-  digitalWrite(Q1_IZQUIERDO, HIGH);
+  rd.mover(ATRAS);
+  ri.mover(ADELANTE);
   delay(tiempo);
-  digitalWrite(Q1_IZQUIERDO, LOW);  
+  avanzar(ADELANTE);
 }
 
 void atacar(){
@@ -242,25 +247,33 @@ void atacar(){
   usI.buscarOponente();
 
   // Estrategias según donde lo encuentra
-  if(usI.detectaOponente()){    // Si está a la izquierda
+  // Si está a la izquierda
+  if(usI.detectaOponente()){    
     girarIzquierda(TMP_GIRO_90);
-  }
-  
-  else if(usD.detectaOponente()){     // Si está a la derecha
-    girarDerecha(TMP_GIRO_90);
-  }
-  
-  else if(usDD.detectaOponente() && usDI.detectaOponente()){  // Si está en ambos delanteros
-    setVelocidad(usDD.velocidadAtaque());
-    avanzar(ADELANTE, TMP_ATACAR);
+    setVelocidad(PW_WALK);
   }
 
-  else if(usDI.detectaOponente()){    // Si sólo está en el delantero izquierdo
+  // Si está a la derecha
+  else if(usD.detectaOponente()){     
+    girarDerecha(TMP_GIRO_90);
+    setVelocidad(PW_WALK);
+  }
+
+  // Si está en ambos delanteros
+  else if(usDD.detectaOponente() && usDI.detectaOponente()){  
+    setVelocidad(usDD.velocidadAtaque());
+    avanzar(ADELANTE);
+  }
+
+  // Si sólo está en el delantero izquierdo
+  else if(usDI.detectaOponente()){    
     girarIzquierda(TMP_GIRO_35);
+    setVelocidad(PW_WALK);
   }
 
   else if(usDD.detectaOponente()){    // Si sólo está en el delantero derecho
     girarDerecha(TMP_GIRO_35);
+    setVelocidad(PW_WALK);
   }
 
   else{
