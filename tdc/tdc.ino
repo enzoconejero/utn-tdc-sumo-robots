@@ -55,6 +55,9 @@ const int TMP_ATACAR = 5000;
 // Linea blanca infrarrojo
 const int LINEA_BLANCA = 300;
 
+// DELAY
+const int DELAY_INICIO = 5000;
+
 class Ultrasonido{
   private:
     int trigger;
@@ -166,7 +169,7 @@ void verificarMando(){
       }
       else{
         corriendo = true;
-        delay(5000);  // TODO: hacer constante
+        delay(DELAY_INICIO);
       }
   }
 }
@@ -189,12 +192,12 @@ void ubicarse(){
     setVelocidad(PW_WALK);
   
     if(dd && td){ // Borde a la derecha
-      girarIzquierda(TMP_GIRO_90);
+      girar(TMP_GIRO_90, IZQUIERDA);
       avanzar(ADELANTE);
     }
   
     else if(di && ti){ // Borde a la derecha
-      girarDerecha(TMP_GIRO_90);;
+      girar(TMP_GIRO_90, DERECHA);
       avanzar(ADELANTE);
     }
   
@@ -220,21 +223,16 @@ void setVelocidad(int velocidad){
   analogWrite(MOSFET_IZQUIERDO, velocidad);
 }
 
-// TODO: unir giro izquierdo y derecho
-// Gira el robot por un cierto tiempo, más tiempo => más angulo
-// Durante este tiempo no se hará otra cosa que girar
-void girarIzquierda(int tiempo){
+void girar(int direccion, int tiempo){
   setVelocidad(PW_GIRO);
-  rd.mover(ATRAS);
-  ri.mover(ADELANTE);
-  delay(tiempo);
-  avanzar(ADELANTE);
-}
-
-void girarDerecha(int tiempo){
-  setVelocidad(PW_GIRO);
-  rd.mover(ATRAS);
-  ri.mover(ADELANTE);
+  if(direccion == DERECHA){
+    rd.mover(ATRAS);
+    ri.mover(ADELANTE);    
+  }
+  else{
+    rd.mover(ADELANTE);
+    ri.mover(ATRAS);    
+  }
   delay(tiempo);
   avanzar(ADELANTE);
 }
@@ -249,13 +247,13 @@ void atacar(){
   // Estrategias según donde lo encuentra
   // Si está a la izquierda
   if(usI.detectaOponente()){    
-    girarIzquierda(TMP_GIRO_90);
+    girar(TMP_GIRO_90, IZQUIERDA);
     setVelocidad(PW_WALK);
   }
 
   // Si está a la derecha
   else if(usD.detectaOponente()){     
-    girarDerecha(TMP_GIRO_90);
+    girar(TMP_GIRO_90, DERECHA);
     setVelocidad(PW_WALK);
   }
 
@@ -267,16 +265,16 @@ void atacar(){
 
   // Si sólo está en el delantero izquierdo
   else if(usDI.detectaOponente()){    
-    girarIzquierda(TMP_GIRO_35);
+    girar(TMP_GIRO_35, IZQUIERDA);
     setVelocidad(PW_WALK);
   }
 
   else if(usDD.detectaOponente()){    // Si sólo está en el delantero derecho
-    girarDerecha(TMP_GIRO_35);
+    girar(TMP_GIRO_35, DERECHA);
     setVelocidad(PW_WALK);
   }
 
   else{
-    girarDerecha(TMP_GIRO_45);
+    girar(TMP_GIRO_45, DERECHA);
   }
 }
